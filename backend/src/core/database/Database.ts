@@ -1,9 +1,16 @@
-import { sql } from 'bun';
+import postgres, { type Sql } from 'postgres';
 
 export class Database {
   private static _instance: Database;
+  private sql: Sql;
 
-  private constructor() {}
+  private constructor() {
+    if (!process.env.POSTGRES_URL) {
+      throw new Error('Missing database URL connection');
+    }
+
+    this.sql = postgres(process.env.POSTGRES_URL);
+  }
 
   static get instance(): Database {
     if (!Database._instance) {
@@ -13,72 +20,71 @@ export class Database {
     return Database._instance;
   }
 
-  async fetchDepartments(
-    filterId: number = 0,
-    orderByCol: string = '',
-    orderDirection: string = 'ASC',
+  async delete() {}
+
+  async insert() {}
+
+  async select<T extends readonly (object | undefined)[]>(
+    table: string,
+    columns: string[],
+    where: Record<string, string> = {},
+    orderBy: Record<string, 'ASC' | 'DESC'> = {},
     offset: number = 0,
     limit: number = 100
-  ): Promise<any | Error> {
-    const where = filterId === 0 ? sql`` : sql`WHERE id = ${filterId}`;
+  ): Promise<object | undefined | Error> {
+    const whereConditions = Object.entries(where).map(([column, value]) => {
+      return this.sql`${this.sql(column)} = ${value}`;
+    });
 
-    const orderBy =
-      orderByCol.trim() === '' ? sql`` : sql`${orderByCol} = ${orderDirection}`;
+    const orderConditions = Object.entries(orderBy).map(
+      ([column, direction]) => {
+        return this.sql`${this.sql(column)} ${this.sql(direction)}`;
+      }
+    );
+
+    const whereClause =
+      whereConditions.length > 0
+        ? this.sql`WHERE ${this.joinSqlSentence(
+            whereConditions,
+            this.sql` AND `
+          )}`
+        : this.sql``;
+
+    const orderByClause =
+      orderConditions.length > 0
+        ? this.sql`ORDER BY ${this.joinSqlSentence(
+            orderConditions,
+            this.sql`, `
+          )}`
+        : this.sql``;
 
     try {
-      const result = await sql`
-            SELECT
-               id,
-               department_name,
-               department_code
-            FROM
-                departments
-            ${where}
-            ${orderBy}
-            LIMIT ${limit}
-            OFFSET ${offset}
-        `;
+      const result = await this.sql<T>`
+        SELECT 
+          ${this.sql(columns)} 
+        FROM 
+          ${this.sql(table)} 
+        ${whereClause} 
+        ${orderByClause} 
+        LIMIT ${limit} 
+        OFFSET ${offset}
+      `;
 
-      return result;
+      if (!result.length) {
+        throw new Error('Not found');
+      }
+
+      return whereConditions.length > 0 ? result[0] : result;
     } catch (error) {
       return error as Error;
     }
   }
 
-  async fetchCities(
-    filterColumn: string = '',
-    filterId: number = 0,
-    orderByCol: string = '',
-    orderDirection: string = 'ASC',
-    offset: number = 0,
-    limit: number = 100
-  ): Promise<any | Error> {
-    const where =
-      filterId === 0 && filterColumn.trim() === ''
-        ? sql``
-        : sql`WHERE ${sql(filterColumn)} = ${filterId}`;
+  async update() {}
 
-    const orderBy =
-      orderByCol.trim() === '' ? sql`` : sql`${orderByCol} = ${orderDirection}`;
-
-    try {
-      const result = await sql`
-            SELECT
-               id,
-               city_name,
-               city_code,
-               department_id
-            FROM
-                cities
-            ${where}
-            ${orderBy}
-            LIMIT ${limit}
-            OFFSET ${offset}
-        `;
-
-      return result;
-    } catch (error) {
-      return error as Error;
-    }
+  private joinSqlSentence(conditions: any[], separator: any) {
+    return conditions.reduce((prev, curr, idx) => {
+      return idx === 0 ? curr : this.sql`${prev}${separator}${curr}`;
+    }, null);
   }
 }

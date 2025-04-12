@@ -20,14 +20,54 @@ export class Database {
     return Database._instance;
   }
 
-  async delete() {}
+  async delete(
+    table: string,
+    where: Record<string, string | number> = {}
+  ): Promise<boolean | Error> {
+    const whereConditions = Object.entries(where).map(([column, value]) => {
+      return this.sql`${this.sql(column)} = ${value}`;
+    });
 
-  async insert() {}
+    const whereClause =
+      whereConditions.length > 0
+        ? this.sql`WHERE ${this.joinSqlSentence(
+            whereConditions,
+            this.sql` AND `
+          )}`
+        : this.sql``;
+
+    try {
+      const result = await this.sql`
+        DELETE FROM
+          ${this.sql(table)}
+        ${whereClause}
+      `;
+
+      return result.count > 0;
+    } catch (error) {
+      return error as Error;
+    }
+  }
+
+  async insert<T extends readonly (object | undefined)[]>(
+    table: string,
+    insertData: Record<any, any>
+  ): Promise<object | undefined | Error> {
+    try {
+      const result = await this.sql<T>`
+        INSERT INTO ${this.sql(table)} ${this.sql(insertData)} RETURNING *
+      `;
+
+      return result;
+    } catch (error) {
+      return error as Error;
+    }
+  }
 
   async select<T extends readonly (object | undefined)[]>(
     table: string,
     columns: string[],
-    where: Record<string, string> = {},
+    where: Record<string, string | number> = {},
     orderBy: Record<string, 'ASC' | 'DESC'> = {},
     offset: number = 0,
     limit: number = 100
@@ -80,7 +120,37 @@ export class Database {
     }
   }
 
-  async update() {}
+  async update(
+    table: string,
+    updateObject: Record<string, any>,
+    where: Record<string, string | number>
+  ): Promise<number | Error> {
+    const whereConditions = Object.entries(where).map(([column, value]) => {
+      return this.sql`${this.sql(column)} = ${value}`;
+    });
+
+    const whereClause = 
+      whereConditions.length > 0
+        ? this.sql`WHERE ${this.joinSqlSentence(
+            whereConditions, 
+            this.sql` AND `
+          )}`
+        : this.sql``;
+
+    try {
+      const result = await this.sql`
+        UPDATE
+          ${this.sql(table)}
+        SET
+          ${this.sql(updateObject)}
+        ${whereClause}
+      `;
+
+      return result.count;
+    } catch (error) {
+      return error as Error;
+    }
+  }
 
   private joinSqlSentence(conditions: any[], separator: any) {
     return conditions.reduce((prev, curr, idx) => {

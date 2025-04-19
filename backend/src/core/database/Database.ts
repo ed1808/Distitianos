@@ -1,15 +1,12 @@
 import postgres, { type Sql } from 'postgres';
+import { appConfig } from '../config/Config';
 
 export class Database {
   private static _instance: Database;
   private sql: Sql;
 
   private constructor() {
-    if (!process.env.POSTGRES_URL) {
-      throw new Error('Missing database URL connection');
-    }
-
-    this.sql = postgres(process.env.POSTGRES_URL);
+    this.sql = postgres(appConfig.databaseUrl);
   }
 
   /**
@@ -27,19 +24,19 @@ export class Database {
 
   /**
    * Deletes records from a specified table based on given conditions.
-   * 
+   *
    * @param table - The name of the table to delete records from
    * @param where - An object containing column-value pairs as deletion conditions
    * @returns A Promise that resolves to:
    *          - true if at least one record was deleted
    *          - false if no records were deleted
    *          - Error if the deletion operation failed
-   * 
+   *
    * @example
    * ```typescript
    * // Delete all users with age 25
    * await db.delete('users', { age: 25 })
-   * 
+   *
    * // Delete all records from table
    * await db.delete('users')
    * ```
@@ -78,7 +75,7 @@ export class Database {
    * @template T - Array type extending readonly array of objects or undefined values
    * @param {string} table - The name of the table to insert into
    * @param {Record<any, any>} insertData - Object containing the data to insert
-   * @returns {Promise<object | undefined | Error>} The inserted record if successful, undefined or Error if failed 
+   * @returns {Promise<object | undefined | Error>} The inserted record if successful, undefined or Error if failed
    * @throws {Error} When there is a database error during insertion
    */
   async insert<T extends readonly (object | undefined)[]>(
@@ -98,19 +95,19 @@ export class Database {
 
   /**
    * Performs a SELECT query on the specified table with the given conditions.
-   * 
+   *
    * @param {string} table - The name of the table to query
    * @param {string[]} columns - Array of column names to select
    * @param {Record<string, string | number>} [where={}] - Object containing WHERE conditions as key-value pairs
    * @param {Record<string, 'ASC' | 'DESC'>} [orderBy={}] - Object containing ORDER BY conditions with column names and sort direction
    * @param {number} [offset=0] - Number of rows to skip
    * @param {number} [limit=100] - Maximum number of rows to return
-   * 
+   *
    * @returns {Promise<object | undefined | Error>} Returns the first result if WHERE conditions are provided,
    *          otherwise returns all results. Returns undefined or Error if no results or query fails.
-   * 
+   *
    * @template T - Array type containing objects or undefined values
-   * 
+   *
    * @throws {Error} Throws an error if no results are found
    */
   async select<T extends readonly (object | undefined)[]>(
@@ -171,12 +168,12 @@ export class Database {
 
   /**
    * Updates records in the specified database table based on given conditions.
-   * 
+   *
    * @param table - The name of the table to update records in
    * @param updateObject - An object containing column-value pairs to update
    * @param where - An object containing column-value pairs for the WHERE clause conditions
    * @returns Promise resolving to number of affected rows or Error if update fails
-   * 
+   *
    * @example
    * ```typescript
    * // Update user's email where id = 1
@@ -196,10 +193,10 @@ export class Database {
       return this.sql`${this.sql(column)} = ${value}`;
     });
 
-    const whereClause = 
+    const whereClause =
       whereConditions.length > 0
         ? this.sql`WHERE ${this.joinSqlSentence(
-            whereConditions, 
+            whereConditions,
             this.sql` AND `
           )}`
         : this.sql``;
@@ -221,11 +218,11 @@ export class Database {
 
   /**
    * Executes a raw SQL query directly against the database.
-   * 
+   *
    * @param sqlQuery - The SQL query string to be executed
    * @returns Promise that resolves to the query results or Error if the query fails
    * @throws {Error} If there is a database connection or query execution error
-   * 
+   *
    * @example
    * ```ts
    * const results = await database.raw('SELECT * FROM users');

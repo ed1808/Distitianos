@@ -43,7 +43,7 @@ export class Database {
    */
   async delete(
     table: string,
-    where: Record<string, string | number> = {}
+    where: Record<string, string | number | boolean> = {}
   ): Promise<boolean | Error> {
     const whereConditions = Object.entries(where).map(([column, value]) => {
       return this.sql`${this.sql(column)} = ${value}`;
@@ -113,18 +113,20 @@ export class Database {
   async select<T extends readonly (object | undefined)[]>(
     table: string,
     columns: string[],
-    where: Record<string, string | number> = {},
+    where: Record<string, string | number | boolean> = {},
     orderBy: Record<string, 'ASC' | 'DESC'> = {},
     offset: number = 0,
     limit: number = 100
-  ): Promise<T | Error> {
+  ): Promise<T | string | Error> {
     const whereConditions = Object.entries(where).map(([column, value]) => {
       return this.sql`${this.sql(column)} = ${value}`;
     });
 
     const orderConditions = Object.entries(orderBy).map(
       ([column, direction]) => {
-        return this.sql`${this.sql(column)} ${this.sql(direction)}`;
+        return this.sql`${this.sql(column)} ${
+          direction === 'ASC' ? this.sql`ASC` : this.sql`DESC`
+        }`;
       }
     );
 
@@ -137,11 +139,13 @@ export class Database {
         : this.sql``;
 
     const orderByClause =
-      orderConditions.length > 0
+      orderConditions.length > 1
         ? this.sql`ORDER BY ${this.joinSqlSentence(
             orderConditions,
             this.sql`, `
           )}`
+        : orderConditions.length === 1
+        ? this.sql`ORDER BY ${this.joinSqlSentence(orderConditions, '')}`
         : this.sql``;
 
     try {
@@ -157,7 +161,7 @@ export class Database {
       `;
 
       if (!result.length) {
-        throw new Error('Not found');
+        return 'Not found';
       }
 
       return result;
@@ -187,7 +191,7 @@ export class Database {
   async update(
     table: string,
     updateObject: Record<string, any>,
-    where: Record<string, string | number>
+    where: Record<string, string | number | boolean>
   ): Promise<number | Error> {
     const whereConditions = Object.entries(where).map(([column, value]) => {
       return this.sql`${this.sql(column)} = ${value}`;

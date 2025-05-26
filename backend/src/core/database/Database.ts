@@ -81,7 +81,7 @@ export class Database {
   async insert<T extends readonly (object | undefined)[]>(
     table: string,
     insertData: Record<any, any>
-  ): Promise<object | undefined | Error> {
+  ): Promise<T | undefined | Error> {
     try {
       const result = await this.sql<T>`
         INSERT INTO ${this.sql(table)} ${this.sql(insertData)} RETURNING *

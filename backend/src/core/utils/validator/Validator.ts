@@ -125,7 +125,9 @@ export class Validator {
     rules: NumberValidationRule,
     result: ValidationResult
   ): void {
-    if (typeof value !== 'number') {
+    value = Number(value);
+
+    if (isNaN(value)) {
       result.valid = false;
       result.errors.push({
         field,

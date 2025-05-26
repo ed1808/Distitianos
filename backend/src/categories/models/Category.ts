@@ -5,4 +5,7 @@ export interface Category {
   created_at: string;
 }
 
-export type CategoryCreate = Pick<Category, 'category_name'>;
+type CategoryPayload = Pick<Category, 'category_name'>;
+
+export type CategoryCreate = CategoryPayload;
+export type CategoryUpdate = CategoryPayload;
